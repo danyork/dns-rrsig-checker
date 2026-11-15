@@ -15,6 +15,7 @@
     th { background: #f0f0f0; }
     .error { color: #b00020; margin-top: 1rem; }
     .meta { color: #555; font-size: 0.9rem; }
+    h2 { font-size: 1.1rem; margin-top: 2.5rem; }
   </style>
 </head>
 <body>
@@ -58,6 +59,28 @@
           <td>{{ sig.signer }}</td>
           <td>{{ sig.inception }}</td>
           <td>{{ sig.expiration }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if log_entries %}
+    <h2>Last {{ log_entries|length }} Logged Lookups</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Algorithm</th>
+          <th>Signature Length (bytes)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in log_entries %}
+        <tr>
+          <td>{{ entry.domain }}</td>
+          <td>{{ entry.algorithm_number }} ({{ entry.algorithm_name }})</td>
+          <td>{{ entry.signature_length }}</td>
         </tr>
         {% endfor %}
       </tbody>

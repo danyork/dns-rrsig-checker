@@ -1,4 +1,6 @@
+import csv
 from datetime import datetime, timezone
+from pathlib import Path
 
 import dns.dnssec
 import dns.flags
@@ -12,6 +14,10 @@ RECORD_TYPES = ["A", "AAAA", "MX", "NS", "SOA", "TXT", "DNSKEY", "DS", "CAA"]
 
 # Public resolvers that reliably set the DO bit and return RRSIG records.
 NAMESERVERS = ["1.1.1.1", "8.8.8.8"]
+
+LOG_FILE = Path(__file__).resolve().parent / "rrsig_log.csv"
+LOG_FIELDS = ["domain", "algorithm_number", "algorithm_name", "signature_length"]
+LOG_DISPLAY_LIMIT = 25
 
 
 def get_resolver():
@@ -49,6 +55,31 @@ def lookup_rrsigs(domain, rdtype):
     return rrsigs
 
 
+def log_rrsigs(domain, rrsigs):
+    file_exists = LOG_FILE.exists()
+    with open(LOG_FILE, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=LOG_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+        for sig in rrsigs:
+            writer.writerow(
+                {
+                    "domain": domain,
+                    "algorithm_number": sig["algorithm_number"],
+                    "algorithm_name": sig["algorithm_name"],
+                    "signature_length": sig["signature_length"],
+                }
+            )
+
+
+def read_recent_log_entries(limit=LOG_DISPLAY_LIMIT):
+    if not LOG_FILE.exists():
+        return []
+    with open(LOG_FILE, newline="") as f:
+        rows = list(csv.DictReader(f))
+    return list(reversed(rows[-limit:]))
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     domain = ""
@@ -70,6 +101,8 @@ def index():
                         f"No RRSIG records found for {domain} ({rdtype}). "
                         "The domain may not be DNSSEC-signed, or that record type doesn't exist."
                     )
+                else:
+                    log_rrsigs(domain, rrsigs)
             except dns.resolver.NXDOMAIN:
                 error = f"{domain} does not exist (NXDOMAIN)."
             except dns.resolver.NoNameservers:
@@ -86,6 +119,7 @@ def index():
         record_types=RECORD_TYPES,
         rrsigs=rrsigs,
         error=error,
+        log_entries=read_recent_log_entries(),
     )
 
 
